@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier
+Authors: Patrick Häcker
+JuliaMinVersion: '1.10'
+License: MIT
+LicenseCopyrightHolders: Patrick Häcker
+PackageName: UseAll
+PackageOwner: PatrickHaecker
+PackageUUID: edbe3dbe-4909-5f9e-bb65-679d27932c2a
+StrategyConfirmIncluded: false
+StrategyLevel: 1
+StrategyReviewExcluded: false
+_src_path: /home/hp74lr/.julia/packages/BestieTemplate/fOzc4

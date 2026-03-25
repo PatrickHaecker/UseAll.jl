@@ -1,0 +1,10 @@
+name = "UseAll"
+uuid = "edbe3dbe-4909-5f9e-bb65-679d27932c2a"
+authors = ["Patrick Häcker"]
+version = "0.1.0"
+
+[workspace]
+projects = ["test", "docs"]
+
+[compat]
+julia = "1.10"

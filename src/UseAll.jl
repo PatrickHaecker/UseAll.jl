@@ -25,9 +25,9 @@ function usefulnames(m_from::Module, m_into::Module=Main)
     # Use FQN for `Base.names` to also work if there is a global variable `names` defined in `Main`.
     names(m) = Base.names(m; all=true, imported=true, (@static VERSION >= v"1.12" ? (; usings=true) : (;))...)
 
-    # Do not pull in redundant identifiers, as this blocks future reuse of the identifiers without any benefit.
-    # Neither import hidden identifier nor the module-specific eval/include.
-    return (Expr(:., s) for s in setdiff(m_from |> names, m_into |> names) if !startswith(s |> string, '#') && s ∉ (:eval, :include))
+    # Skip identifiers already in m_into and hidden names (starting with '#').
+    # This excludes module-specific methods `eval`/`include` due to their common function name in m_from and m_into.
+    return (Expr(:., s) for s in setdiff(m_from |> names, m_into |> names) if !startswith(s |> string, '#'))
 end
 
 end

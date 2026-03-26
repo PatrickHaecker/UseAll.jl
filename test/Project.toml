@@ -1,4 +1,5 @@
 [deps]
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 UseAll = "edbe3dbe-4909-5f9e-bb65-679d27932c2a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"

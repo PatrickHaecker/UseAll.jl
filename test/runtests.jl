@@ -1,4 +1,4 @@
-using UseAll, Test, TOML
+using Revise, UseAll, Test, TOML
 
 import UseAll: allnames
 
@@ -64,5 +64,46 @@ import UseAll: allnames
         @test UseAll.splitmodpath(:Foo) == (:Foo,)
         @test UseAll.splitmodpath(:(Base.Iterators)) == (:Base, :Iterators)
         @test UseAll.splitmodpath(:(A.B.C)) == (:A, :B, :C)
+    end
+
+    @testset "Revise integration" begin
+        dir = mktempdir()
+        mkpath(joinpath(dir, "ReviseTestPkg", "src"))
+        write(joinpath(dir, "ReviseTestPkg", "Project.toml"), """
+            name = "ReviseTestPkg"
+            uuid = "12345678-1234-1234-1234-123456789abc"
+            """)
+        srcfile = joinpath(dir, "ReviseTestPkg", "src", "ReviseTestPkg.jl")
+        write(srcfile, """
+            module ReviseTestPkg
+            export original_func
+            original_func() = 1
+            end
+            """)
+
+        push!(LOAD_PATH, dir)
+        @eval @useall ReviseTestPkg
+
+        @test isdefined(@__MODULE__, :original_func)
+        @test !isdefined(@__MODULE__, :added_func)
+
+        write(srcfile, """
+            module ReviseTestPkg
+            export original_func, added_func
+            original_func() = 1
+            added_func() = 42
+            end
+            """)
+
+        # Manually enqueue for revision (file watchers don't trigger in batch mode).
+        id = Base.PkgId(ReviseTestPkg)
+        pkgdata = Revise.pkgdatas[id]
+        push!(Revise.revision_queue, (pkgdata, first(Revise.srcfiles(pkgdata))))
+        Revise.revise()
+
+        @test isdefined(@__MODULE__, :added_func)
+        @test Base.invokelatest(Main.ReviseTestPkg.added_func) == 42
+
+        pop!(LOAD_PATH)
     end
 end

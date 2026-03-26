@@ -6,7 +6,7 @@ export @useall
 # TODO: It would be cool if this could register in Revise.jl such that if a symbol is added to the package, revise would also make it automatically available.
 macro useall(exs...)
     isempty(exs) && throw(ArgumentError("@useall requires at least one module name, e.g. `@useall MyPackage`"))
-    stmts = Expr[]
+    stmts = sizehint!(Expr[], length(exs))
     for ex in exs
         # Only run `using` for top-level packages; submodules (e.g. Base.Iterators) are already loaded.
         ex isa Symbol && @eval __module__ using $ex

@@ -39,6 +39,9 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1.12"
+      - name: Ensure General registry
+        run: |
+          julia --color=yes -e 'import Pkg; isempty(Pkg.Registry.reachable_registries()) && Pkg.Registry.add(Pkg.RegistrySpec(name="General"))'
       - name: Use Julia cache
         uses: julia-actions/cache@v2
       - name: Instantiate JET test environment

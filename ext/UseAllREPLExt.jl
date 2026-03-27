@@ -16,6 +16,15 @@ end
 
 REPL.setmodifiers!(cp::UseAllCompletionProvider, m::LineEdit.Modifiers) = REPL.setmodifiers!(cp.wrapped, m)
 
+function install_provider()
+    repl = Base.active_repl::REPL.LineEditREPL
+    for mode in repl.interface.modes
+        if mode isa LineEdit.Prompt && mode.complete isa REPL.REPLCompletionProvider
+            mode.complete = UseAllCompletionProvider(mode.complete)
+        end
+    end
+end
+
 function LineEdit.complete_line(cp::UseAllCompletionProvider, s::LineEdit.PromptState, mod::Module; hint::Bool=false)
     # Guard against REPL API changes — silently fall back to default completion.
     try
@@ -43,17 +52,22 @@ function LineEdit.complete_line(cp::UseAllCompletionProvider, s::LineEdit.Prompt
 end
 
 function __init__()
-    # In non-interactive mode (e.g. scripts, tests), REPL is loaded but no active_repl exists.
-    isdefined(Base, :active_repl) || return
-    # Guard against REPL internals changing — silently skip installation.
-    try
-        repl = Base.active_repl::REPL.LineEditREPL
-        for mode in repl.interface.modes
-            if mode isa LineEdit.Prompt && mode.complete isa REPL.REPLCompletionProvider
-                mode.complete = UseAllCompletionProvider(mode.complete)
+    if isdefined(Base, :active_repl)
+        # Loaded interactively (e.g. `using UseAll` at the REPL).
+        try install_provider() catch end
+    elseif isinteractive()
+        # Loaded from startup.jl — REPL isn't initialized yet; wait for it.
+        @async try
+            while !isdefined(Base, :active_repl)
+                sleep(0.1)
             end
+            repl = Base.active_repl
+            while !isdefined(repl, :interface)
+                sleep(0.1)
+            end
+            install_provider()
+        catch
         end
-    catch
     end
 end
 

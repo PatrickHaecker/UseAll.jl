@@ -7,9 +7,11 @@ version = "0.1.0"
 projects = ["test", "docs"]
 
 [weakdeps]
+REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [extensions]
+UseAllREPLExt = "REPL"
 UseAllReviseExt = "Revise"
 
 [compat]

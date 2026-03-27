@@ -1,4 +1,4 @@
-using Revise, UseAll, Test, TOML
+using Revise, UseAll, Test, TOML, REPL
 
 import UseAll: allnames
 
@@ -115,5 +115,26 @@ import UseAll: allnames
         @test Base.invokelatest(Main.ReviseTestPkg.added_func) == 42
 
         pop!(LOAD_PATH)
+    end
+
+    @testset "REPL tab completion" begin
+        using REPL.LineEdit
+        ext = Base.get_extension(UseAll, :UseAllREPLExt)
+        function _test_completions(input)
+            cp = ext.UseAllCompletionProvider(REPL.REPLCompletionProvider())
+            prompt = LineEdit.Prompt("julia> ")
+            buf = IOBuffer(input)
+            seek(buf, length(input))
+            terminal = Base.Terminals.TerminalBuffer(IOBuffer())
+            s = LineEdit.PromptState(terminal, prompt, buf, :off, nothing, IOBuffer[], 0,
+                                     LineEdit.InputAreaState(0, 0), -1,
+                                     Base.Threads.SpinLock(), -Inf, -Inf, nothing)
+            comps, _, _ = LineEdit.complete_line(cp, s, Main)
+            return [c.completion for c in comps]
+        end
+        @test "TOML" in _test_completions("@useall TO")
+        @test "Iterators" in _test_completions("@useall Base.Ite")
+        @test "TOML" in _test_completions("@useall Test TO")
+        @test "println" in _test_completions("printl")  # normal completion unaffected
     end
 end

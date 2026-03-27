@@ -13,13 +13,13 @@ macro useall(exs...)
         m = @eval __module__ $ex
         modpath = Expr(:., splitmodpath(ex)...)
         push!(stmts, Expr(:using, Expr(:(:), modpath, usefulnames(m, __module__)...)))
-        _revise_track(m, modpath, __module__)
+        revise_track(m, modpath, __module__)
     end
     Expr(:escape, Expr(:block, stmts...))
 end
 
-# No-op by default; overridden by more specific method in ext/UseAllReviseExt.jl when Revise is loaded.
-_revise_track(_...) = nothing
+# No-op by default; overridden by more specific method in UseAllReviseExt.jl when Revise is loaded.
+revise_track(_...) = nothing
 
 # Convert a module expression to path components: :Foo → (:Foo,), :(Base.Iterators) → (:Base, :Iterators)
 splitmodpath(s::Symbol) = (s,)

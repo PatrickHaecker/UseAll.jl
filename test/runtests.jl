@@ -66,6 +66,16 @@ import UseAll: allnames
         @test UseAll.splitmodpath(:(A.B.C)) == (:A, :B, :C)
     end
 
+    @testset "@useall survives broken Revise.add_callback" begin
+        # Revise.add_callback throws for untrackable modules like Base.Iterators.
+        # This verifies the try-catch in UseAllReviseExt keeps @useall working.
+        @eval module _TestBrokenCallback
+            using UseAll
+            @useall Base.Iterators
+        end
+        @test :countfrom in allnames(_TestBrokenCallback)
+    end
+
     @testset "Revise integration" begin
         dir = mktempdir()
         mkpath(joinpath(dir, "ReviseTestPkg", "src"))

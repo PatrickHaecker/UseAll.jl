@@ -1,5 +1,8 @@
 name: Reusable test
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_call:
     inputs:
@@ -39,13 +42,21 @@ jobs:
         with:
           version: ${{ inputs.version }}
           arch: ${{ inputs.arch }}
+      - name: Use Julia cache
+        uses: julia-actions/cache@v2
       - name: Ensure General registry
         run: |
           julia --color=yes -e 'import Pkg; isempty(Pkg.Registry.reachable_registries()) && Pkg.Registry.add(Pkg.RegistrySpec(name="General"))'
-      - name: Use Julia cache
-        uses: julia-actions/cache@v2
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - name: Instantiate test environment
+        run: |
+          julia --project=test --color=yes -e 'import Pkg; Pkg.develop(Pkg.PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Run tests
+        run: |
+          if [ "${{ inputs.run_codecov }}" = "true" ]; then
+            julia --project=test --color=yes --code-coverage=user test/runtests.jl
+          else
+            julia --project=test --color=yes test/runtests.jl
+          fi
       - uses: julia-actions/julia-processcoverage@v1
         if: ${{ inputs.run_codecov }}
       - uses: codecov/codecov-action@v4

@@ -1,5 +1,8 @@
 name: Docs
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
@@ -33,11 +36,11 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
+      - name: Use Julia cache
+        uses: julia-actions/cache@v2
       - name: Ensure General registry
         run: |
           julia --color=yes -e 'import Pkg; isempty(Pkg.Registry.reachable_registries()) && Pkg.Registry.add(Pkg.RegistrySpec(name="General"))'
-      - name: Use Julia cache
-        uses: julia-actions/cache@v2
       - name: Instantiate environment with development version of the package
         run: |
           julia --project=docs -e '

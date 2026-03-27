@@ -1,5 +1,8 @@
 name: Test
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
@@ -39,12 +42,12 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1.12"
+      - name: Use Julia cache
+        uses: julia-actions/cache@v2
       - name: Ensure General registry
         run: |
           julia --color=yes -e 'import Pkg; isempty(Pkg.Registry.reachable_registries()) && Pkg.Registry.add(Pkg.RegistrySpec(name="General"))'
-      - name: Use Julia cache
-        uses: julia-actions/cache@v2
       - name: Instantiate JET test environment
-        run: julia --project=test/jet --color=yes -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
+        run: julia --project=test/jet --color=yes -e 'import Pkg; Pkg.instantiate()'
       - name: Run JET
         run: julia --project=test/jet --color=yes test/jet/runtests.jl

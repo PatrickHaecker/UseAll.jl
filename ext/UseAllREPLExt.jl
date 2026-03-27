@@ -17,6 +17,8 @@ end
 REPL.setmodifiers!(cp::UseAllCompletionProvider, m::LineEdit.Modifiers) = REPL.setmodifiers!(cp.wrapped, m)
 
 function install_provider()
+    # Only install if the REPL API we depend on for fallback actually exists (incl. `hint` kwarg).
+    hasmethod(LineEdit.complete_line, Tuple{REPL.REPLCompletionProvider, LineEdit.PromptState, Module}, (:hint,)) || return
     repl = Base.active_repl::REPL.LineEditREPL
     for mode in repl.interface.modes
         if mode isa LineEdit.Prompt && mode.complete isa REPL.REPLCompletionProvider
@@ -47,7 +49,7 @@ function LineEdit.complete_line(cp::UseAllCompletionProvider, s::LineEdit.Prompt
         cp.wrapped.modifiers = LineEdit.Modifiers()
         return unique!(LineEdit.NamedCompletion[REPLCompletions.named_completion(x) for x in ret]), range, should_complete
     catch
-        return REPL.complete_line(cp.wrapped, s, mod; hint)
+        return LineEdit.complete_line(cp.wrapped, s, mod; hint)
     end
 end
 

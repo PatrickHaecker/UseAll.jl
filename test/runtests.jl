@@ -1,6 +1,4 @@
-using Revise, UseAll, Test, TOML, REPL
-
-import UseAll: allnames
+using Revise, UseAll, Test, TOML
 
 @testset "UseAll" begin
     @testset "@useall with no arguments" begin
@@ -12,9 +10,8 @@ import UseAll: allnames
             using UseAll, TOML
             @useall TOML
         end
-        exported = allnames(_TestSingle)
-        @test :parsefile in exported
-        @test :parse in exported
+        @test isdefined(_TestSingle, :parsefile)
+        @test isdefined(_TestSingle, :parse)
     end
 
     @testset "@useall with submodule" begin
@@ -22,9 +19,8 @@ import UseAll: allnames
             using UseAll
             @useall Base.Iterators
         end
-        exported = allnames(_TestSub)
-        @test :countfrom in exported
-        @test :cycle in exported
+        @test isdefined(_TestSub, :countfrom)
+        @test isdefined(_TestSub, :cycle)
     end
 
     @testset "@useall with package and submodule" begin
@@ -32,9 +28,8 @@ import UseAll: allnames
             using UseAll, TOML
             @useall TOML Base.Iterators
         end
-        exported = allnames(_TestMulti)
-        @test :parsefile in exported  # from TOML
-        @test :countfrom in exported  # from Base.Iterators
+        @test isdefined(_TestMulti, :parsefile)   # from TOML
+        @test isdefined(_TestMulti, :countfrom)    # from Base.Iterators
     end
 
     @testset "@useall with multiple packages" begin
@@ -42,9 +37,8 @@ import UseAll: allnames
             using UseAll, TOML, Test
             @useall TOML Test
         end
-        exported = allnames(_TestMultiPkg)
-        @test :parsefile in exported  # from TOML
-        @test :detect_ambiguities in exported  # from Test
+        @test isdefined(_TestMultiPkg, :parsefile)          # from TOML
+        @test isdefined(_TestMultiPkg, :detect_ambiguities)  # from Test
     end
 
     @testset "does not import eval/include" begin
@@ -73,7 +67,7 @@ import UseAll: allnames
             using UseAll
             @useall Base.Iterators
         end
-        @test :countfrom in allnames(_TestBrokenCallback)
+        @test isdefined(_TestBrokenCallback, :countfrom)
     end
 
     @testset "Revise integration" begin
@@ -117,24 +111,27 @@ import UseAll: allnames
         pop!(LOAD_PATH)
     end
 
-    @testset "REPL tab completion" begin
-        using REPL.LineEdit
-        ext = Base.get_extension(UseAll, :UseAllREPLExt)
-        function _test_completions(input)
-            cp = ext.UseAllCompletionProvider(REPL.REPLCompletionProvider())
-            prompt = LineEdit.Prompt("julia> ")
-            buf = IOBuffer(input)
-            seek(buf, length(input))
-            terminal = Base.Terminals.TerminalBuffer(IOBuffer())
-            s = LineEdit.PromptState(terminal, prompt, buf, :off, nothing, IOBuffer[], 0,
-                                     LineEdit.InputAreaState(0, 0), -1,
-                                     Base.Threads.SpinLock(), -Inf, -Inf, nothing)
-            comps, _, _ = LineEdit.complete_line(cp, s, Main)
-            return [c.completion for c in comps]
+    # Constructing a PromptState requires REPL internals, so these tests are version-gated.
+    if VERSION >= v"1.12" && !isnothing(Base.identify_package("REPL"))
+        @testset "REPL tab completion" begin
+            using REPL, REPL.LineEdit
+            ext = Base.get_extension(UseAll, :UseAllREPLExt)
+            function _test_completions(input)
+                cp = ext.UseAllCompletionProvider(REPL.REPLCompletionProvider())
+                prompt = LineEdit.Prompt("julia> ")
+                buf = IOBuffer(input)
+                seek(buf, length(input))
+                terminal = Base.Terminals.TerminalBuffer(IOBuffer())
+                s = LineEdit.PromptState(terminal, prompt, buf, :off, nothing, IOBuffer[], 0,
+                                         LineEdit.InputAreaState(0, 0), -1,
+                                         Base.Threads.SpinLock(), -Inf, -Inf, nothing)
+                comps, _, _ = LineEdit.complete_line(cp, s, Main)
+                return [c.completion for c in comps]
+            end
+            @test "TOML" in _test_completions("@useall TO")
+            @test "Iterators" in _test_completions("@useall Base.Ite")
+            @test "TOML" in _test_completions("@useall Test TO")
+            @test "println" in _test_completions("printl")  # normal completion unaffected
         end
-        @test "TOML" in _test_completions("@useall TO")
-        @test "Iterators" in _test_completions("@useall Base.Ite")
-        @test "TOML" in _test_completions("@useall Test TO")
-        @test "println" in _test_completions("printl")  # normal completion unaffected
     end
 end

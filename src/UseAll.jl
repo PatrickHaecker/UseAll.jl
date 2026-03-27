@@ -2,8 +2,29 @@ module UseAll
 
 export @useall
 
-# Use `@useall MyPackage` to simplify debugging from the command line.
-# When Revise.jl is loaded, newly added symbols are automatically imported on revision.
+"""
+    @useall Module1 [Module2 ...]
+
+Import all useful names from the given modules into the caller's module namespace.
+
+Unlike `using Module`, which only imports the explicitly exported names, `@useall` imports
+all names — including private and imported ones — except for hidden compiler-generated names
+(starting with `#`) and names already present in the target module (such as `eval` and `include`).
+
+Supports top-level packages and submodules:
+
+    @useall TOML Base.Iterators
+
+When [Revise.jl](https://github.com/timholy/Revise.jl) is loaded, newly exported symbols are
+automatically imported after revision.
+
+# Examples
+```julia
+using UseAll
+@useall TOML
+@useall TOML Base.Iterators
+```
+"""
 macro useall(exs...)
     isempty(exs) && throw(ArgumentError("@useall requires at least one module name, e.g. `@useall MyPackage`"))
     stmts = sizehint!(Expr[], length(exs))

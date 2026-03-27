@@ -63,7 +63,11 @@ makedocs(;
     authors = "Patrick Häcker",
     repo = "https://github.com/PatrickHaecker/UseAll.jl/blob/{commit}{path}#{line}",
     sitename = "UseAll.jl",
-    format = Documenter.HTML(; canonical = "https://PatrickHaecker.github.io/UseAll.jl"),
+    format = Documenter.HTML(
+        ;
+        canonical = "https://PatrickHaecker.github.io/UseAll.jl",
+        repolink = "https://github.com/PatrickHaecker/UseAll.jl",
+    ),
     pages = list_pages(),
 )
 

@@ -36,7 +36,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     continue-on-error: ${{ inputs.allow_failure }}
     permissions:
-      actions: write
       contents: read
 
     steps:
@@ -47,6 +46,8 @@ jobs:
           arch: ${{ inputs.arch }}
       - name: Use Julia cache
         uses: julia-actions/cache@v3
+        with:
+          delete-old-caches: false
       - name: Ensure General registry
         run: |
           julia --color=yes -e 'import Pkg; isempty(Pkg.Registry.reachable_registries()) && Pkg.Registry.add(Pkg.RegistrySpec(name="General"))'

@@ -1,4 +1,4 @@
-using Revise, UseAll, Test, TOML
+using Aqua, Revise, UseAll, Test, TOML
 
 @testset "UseAll" begin
     @testset "@useall with no arguments" begin
@@ -133,5 +133,9 @@ using Revise, UseAll, Test, TOML
             @test "TOML" in _test_completions("@useall Test TO")
             @test "println" in _test_completions("printl")  # normal completion unaffected
         end
+    end
+
+    @testset "Aqua" begin
+        Aqua.test_all(UseAll)
     end
 end

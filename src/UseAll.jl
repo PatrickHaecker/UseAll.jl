@@ -29,10 +29,19 @@ macro useall(exs...)
     isempty(exs) && throw(ArgumentError("@useall requires at least one module name, e.g. `@useall MyPackage`"))
     stmts = sizehint!(Expr[], length(exs))
     for ex in exs
-        # Only run `using` for top-level packages; submodules (e.g. Base.Iterators) are already loaded.
-        ex isa Symbol && @eval __module__ using $ex
+        modpath = if issubmod(__module__, ex)
+            # Submodule of the caller's module (e.g. module defined at the REPL).
+            Expr(:., :., ex)
+        elseif ex isa Symbol
+            # Top-level package; load it first.
+            @eval __module__ using $ex
+            Expr(:., ex)
+        else
+            # Qualified path like Base.Iterators; already accessible.
+            Expr(:., splitmodpath(ex)...)
+        end
+        # @eval is needed as `using` in the package branch runs in a new world age.
         m = @eval __module__ $ex
-        modpath = Expr(:., splitmodpath(ex)...)
         push!(stmts, Expr(:using, Expr(:(:), modpath, usefulnames(m, __module__)...)))
         revise_track(m, modpath, __module__)
     end
@@ -41,6 +50,9 @@ end
 
 # No-op by default; overridden by more specific method in UseAllReviseExt.jl when Revise is loaded.
 revise_track(_...) = nothing
+
+# True when `name` is a submodule defined directly inside `mod`.
+issubmod(mod, name) = name isa Symbol && isdefined(mod, name) && (m = getfield(mod, name)) isa Module && parentmodule(m) === mod
 
 # Convert a module expression to path components: :Foo → (:Foo,), :(Base.Iterators) → (:Base, :Iterators)
 splitmodpath(s::Symbol) = (s,)

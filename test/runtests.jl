@@ -41,6 +41,20 @@ using Aqua, Revise, UseAll, Test, TOML
         @test isdefined(_TestMultiPkg, :detect_ambiguities)  # from Test
     end
 
+    @testset "@useall with submodule of current module" begin
+        @eval module _TestSubOwn
+            module Inner
+                export exported_func
+                exported_func() = 1
+                private_func() = 2
+            end
+            using UseAll
+            @useall Inner
+        end
+        @test isdefined(_TestSubOwn, :exported_func)
+        @test isdefined(_TestSubOwn, :private_func)
+    end
+
     @testset "does not import eval/include" begin
         useful = UseAll.usefulnames(TOML)
         syms = [s.args[1] for s in useful]

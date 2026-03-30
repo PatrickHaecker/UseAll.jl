@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.2
+
+- Added support for the `@useall using .SubModule` syntax as an alternative way to
+  explicitly refer to submodules of the current module. This mirrors the syntax
+  supported by Reexport.jl and works around `.SubModule` being illegal syntax
+  in Julia macro arguments.
+
 ## v0.1.1
 
 - Added support for submodules of the current module. `@useall MyModule` now works when

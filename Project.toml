@@ -1,7 +1,7 @@
 name = "UseAll"
 uuid = "edbe3dbe-4909-5f9e-bb65-679d27932c2a"
 authors = ["Patrick Häcker"]
-version = "0.1.1"
+version = "0.1.2"
 
 [workspace]
 projects = ["test", "docs"]

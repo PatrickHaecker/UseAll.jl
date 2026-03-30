@@ -27,6 +27,12 @@ end
 @useall MyModule   # The Julia parser does not accept `@useall .MyModule` here.
 ```
 
+As an alternative (mirroring the syntax supported by Reexport.jl), you can also use the `using` form to explicitly refer to submodules of the current module:
+
+```julia
+@useall using .MyModule
+```
+
 This is useful while working in the REPL: By pulling names from a package or submodule into `Main`, you can execute copy-pasted code from a module. That means all your previous definitions in your REPL session or from your `startup.jl` remain available. You can also add the names from more than one module and can execute their copy-pasted code without doing anything else in-between.
 
 It is also useful in closely coupled code, for example in a package's own `runtests.jl`, where explicit imports can become noisy and the code intentionally works with many internals of the same package.

@@ -55,6 +55,20 @@ using Aqua, Revise, UseAll, Test, TOML
         @test isdefined(_TestSubOwn, :private_func)
     end
 
+    @testset "@useall using .SubModule" begin
+        @eval module _TestUsingDot
+            module Inner
+                export exported_func_ud
+                exported_func_ud() = 1
+                private_func_ud() = 2
+            end
+            using UseAll
+            @useall using .Inner
+        end
+        @test isdefined(_TestUsingDot, :exported_func_ud)
+        @test isdefined(_TestUsingDot, :private_func_ud)
+    end
+
     @testset "does not import eval/include" begin
         useful = UseAll.usefulnames(TOML)
         syms = [s.args[1] for s in useful]

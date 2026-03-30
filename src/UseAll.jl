@@ -4,6 +4,7 @@ export @useall
 
 """
     @useall Module1 [Module2 ...]
+    @useall using .SubModule [.SubModule2 ...]
 
 Import all useful names from the given modules into the caller's module namespace.
 
@@ -18,6 +19,11 @@ Supports top-level packages, submodules, and submodules of the current module:
 Submodules of the caller's module (e.g. defined in `Main`) are detected automatically:
 use `@useall MyModule` instead of `@useall .MyModule`, as the latter is invalid syntax in Julia.
 
+As an alternative to the automatic detection, the `using` syntax is also supported to
+explicitly refer to submodules of the current module:
+
+    @useall using .MyModule
+
 When [Revise.jl](https://github.com/timholy/Revise.jl) is loaded, newly exported symbols are
 automatically imported after revision.
 
@@ -26,25 +32,34 @@ automatically imported after revision.
 using UseAll
 @useall TOML
 @useall TOML Base.Iterators
+@useall using .MySubModule
 ```
 """
 macro useall(exs...)
     isempty(exs) && throw(ArgumentError("@useall requires at least one module name, e.g. `@useall MyPackage`"))
-    stmts = sizehint!(Expr[], length(exs))
-    for ex in exs
-        modpath = if issubmod(__module__, ex)
+    # `@useall using .A .B` passes a single `using` Expr; unwrap its args.
+    items = length(exs) == 1 && exs[1] isa Expr && exs[1].head === :using ? exs[1].args : exs
+    stmts = sizehint!(Expr[], length(items))
+    for ex in items
+        if ex isa Expr && ex.head === :. && first(ex.args) === :.
+            # Explicit relative path from `@useall using .SubModule`.
+            modpath = ex
+            m = foldl(getfield, @view(ex.args[2:end]); init=__module__)
+        elseif issubmod(__module__, ex)
             # Submodule of the caller's module (e.g. module defined at the REPL).
-            Expr(:., :., ex)
+            modpath = Expr(:., :., ex)
+            m = getfield(__module__, ex)
         elseif ex isa Symbol
             # Top-level package; load it first.
             @eval __module__ using $ex
-            Expr(:., ex)
+            modpath = Expr(:., ex)
+            # @eval is needed as `using` in the `@eval` above runs in a new world age.
+            m = @eval __module__ $ex
         else
             # Qualified path like Base.Iterators; already accessible.
-            Expr(:., splitmodpath(ex)...)
+            modpath = Expr(:., splitmodpath(ex)...)
+            m = foldl(getfield, splitmodpath(ex); init=Main)
         end
-        # @eval is needed as `using` in the package branch runs in a new world age.
-        m = @eval __module__ $ex
         push!(stmts, Expr(:using, Expr(:(:), modpath, usefulnames(m, __module__)...)))
         revise_track(m, modpath, __module__)
     end

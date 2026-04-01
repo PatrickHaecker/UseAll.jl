@@ -1,6 +1,7 @@
 module UseAll
 
 export @useall
+@static VERSION >= v"1.11" && eval(Expr(:public, Symbol("@usepublic")))
 
 """
     @useall Module1 [Module2 ...]
@@ -36,7 +37,38 @@ using UseAll
 ```
 """
 macro useall(exs...)
-    isempty(exs) && throw(ArgumentError("@useall requires at least one module name, e.g. `@useall MyPackage`"))
+    _useimport(__module__, exs, allnames; macroname="@useall")
+end
+
+"""
+    UseAll.@usepublic Module1 [Module2 ...]
+    UseAll.@usepublic using .SubModule [.SubModule2 ...]
+
+Import exported and public names from the given modules into the caller's module namespace.
+
+Unlike `@useall`, which imports all names including private ones, `@usepublic` only imports
+names that are part of the module's public API: those declared with `export` or (on Julia ≥ 1.11)
+the `public` keyword.
+
+`@usepublic` is public but not exported — qualify it as `UseAll.@usepublic` or bring it into
+scope with `using UseAll: @usepublic`.
+
+Supports the same syntax as `@useall` — see its documentation for details.
+
+# Examples
+```julia
+using UseAll
+UseAll.@usepublic TOML
+UseAll.@usepublic TOML Base.Iterators
+UseAll.@usepublic using .MySubModule
+```
+"""
+macro usepublic(exs...)
+    _useimport(__module__, exs, publicnames; macroname="@usepublic")
+end
+
+function _useimport(__module__::Module, exs, namefn; macroname::String)
+    isempty(exs) && throw(ArgumentError("$macroname requires at least one module name, e.g. `$macroname MyPackage`"))
     # `@useall using .A .B` passes a single `using` Expr; unwrap its args.
     items = length(exs) == 1 && exs[1] isa Expr && exs[1].head === :using ? exs[1].args : exs
     stmts = sizehint!(Expr[], length(items))
@@ -60,8 +92,8 @@ macro useall(exs...)
             modpath = Expr(:., splitmodpath(ex)...)
             m = foldl(getfield, splitmodpath(ex); init=Main)
         end
-        push!(stmts, Expr(:using, Expr(:(:), modpath, usefulnames(m, __module__)...)))
-        revise_track(m, modpath, __module__)
+        push!(stmts, Expr(:using, Expr(:(:), modpath, usefulnames(namefn, m, __module__)...)))
+        revise_track(namefn, m, modpath, __module__)
     end
     Expr(:escape, Expr(:block, stmts...))
 end
@@ -79,9 +111,13 @@ splitmodpath(ex::Expr) = (splitmodpath(ex.args[1])..., ex.args[2].value)
 # All names in a module, including private, imported, and (on Julia ≥ 1.12) usings.
 allnames(m::Module) = Base.names(m; all=true, imported=true, (@static VERSION >= v"1.12" ? (; usings=true) : (;))...)
 
+# Exported and public names (Julia ≥ 1.11 includes `public`-declared names).
+publicnames(m::Module) = Base.names(m)
+
 # Skip identifiers already in m_into and hidden names (starting with '#').
 # This excludes module-specific methods `eval`/`include` due to their common function name in m_from and m_into.
-usefulnames(m_from::Module, m_into::Module=Main) =
-    (Expr(:., s) for s in setdiff(m_from |> allnames, m_into |> allnames) if !startswith(s |> string, '#'))
+usefulnames(namefn, m_from::Module, m_into::Module=Main) =
+    (Expr(:., s) for s in setdiff(namefn(m_from), allnames(m_into)) if !startswith(s |> string, '#'))
+usefulnames(m_from::Module, m_into::Module=Main) = usefulnames(allnames, m_from, m_into)
 
 end

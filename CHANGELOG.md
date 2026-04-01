@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.3
+
+- Added `@usepublic` macro (public, not exported): like `@useall` but imports only exported
+  and public names. Includes REPL tab completion and Revise.jl support.
+
 ## v0.1.2
 
 - Added support for the `@useall using .SubModule` syntax as an alternative way to

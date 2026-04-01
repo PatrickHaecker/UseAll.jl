@@ -76,6 +76,63 @@ using Aqua, Revise, UseAll, Test, TOML
         @test :include ∉ syms
     end
 
+    @testset "@usepublic with a single package" begin
+        @eval module _TestPubSingle
+            using UseAll: @usepublic
+            using Test
+            @usepublic Test
+        end
+        @test isdefined(_TestPubSingle, :detect_ambiguities)
+    end
+
+    @testset "@usepublic does not import private names" begin
+        @eval module _TestPubPrivate
+            module Inner
+                export exported_func_pp
+                exported_func_pp() = 1
+                private_func_pp() = 2
+            end
+            using UseAll: @usepublic
+            @usepublic Inner
+        end
+        @test isdefined(_TestPubPrivate, :exported_func_pp)
+        @test !isdefined(_TestPubPrivate, :private_func_pp)
+    end
+
+    @testset "@usepublic with submodule" begin
+        @eval module _TestPubSub
+            using UseAll: @usepublic
+            @usepublic Base.Iterators
+        end
+        # Base.Iterators exports some names
+        exported = Base.names(Base.Iterators)
+        @test any(s -> isdefined(_TestPubSub, s), exported)
+    end
+
+    @testset "@usepublic using .SubModule" begin
+        @eval module _TestPubUsingDot
+            module Inner
+                export exported_func_pud
+                exported_func_pud() = 1
+                private_func_pud() = 2
+            end
+            using UseAll: @usepublic
+            @usepublic using .Inner
+        end
+        @test isdefined(_TestPubUsingDot, :exported_func_pud)
+        @test !isdefined(_TestPubUsingDot, :private_func_pud)
+    end
+
+    @testset "@usepublic with no arguments" begin
+        @test_throws LoadError @eval UseAll.@usepublic
+    end
+
+    @testset "publicnames helper" begin
+        pub = UseAll.publicnames(Test)
+        @test :Test in pub
+        @test :detect_ambiguities in pub
+    end
+
     @testset "does not import hidden names" begin
         useful = UseAll.usefulnames(TOML)
         syms = [s.args[1] for s in useful]
@@ -159,6 +216,8 @@ using Aqua, Revise, UseAll, Test, TOML
             @test "TOML" in _test_completions("@useall TO")
             @test "Iterators" in _test_completions("@useall Base.Ite")
             @test "TOML" in _test_completions("@useall Test TO")
+            @test "TOML" in _test_completions("@usepublic TO")
+            @test "Iterators" in _test_completions("@usepublic Base.Ite")
             @test "println" in _test_completions("printl")  # normal completion unaffected
         end
     end

@@ -34,7 +34,7 @@ function LineEdit.complete_line(cp::UseAllCompletionProvider, s::LineEdit.Prompt
         pos = thisind(full, position(s))
 
         # Rewrite "@useall <arg>" → "using <arg>" so the REPL's import completion kicks in.
-        m = match(r"@useall\s+((?:\S+\s+)*)(\S*)$", SubString(full, 1, pos))
+        m = match(r"@use(?:all|public)\s+((?:\S+\s+)*)(\S*)$", SubString(full, 1, pos))
         if isnothing(m)
             query, query_pos, offset = full, pos, 0
         else

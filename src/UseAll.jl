@@ -120,4 +120,15 @@ usefulnames(namefn, m_from::Module, m_into::Module=Main) =
     (Expr(:., s) for s in setdiff(namefn(m_from), allnames(m_into)) if !startswith(s |> string, '#'))
 usefulnames(m_from::Module, m_into::Module=Main) = usefulnames(allnames, m_from, m_into)
 
+const REPL_PKGID = Base.PkgId(Base.UUID("3fa0cd96-eef1-5676-8a61-b3b8758bbffb"), "REPL")
+
+# Since Julia 1.11, Base loads the running REPL through `Base.require_stdlib`, which does not register it in
+# `Base.loaded_modules`. Package extensions loaded afterwards therefore do not see REPL as loaded, so
+# `UseAllREPLExt` would not load. Register REPL regularly when a REPL is running.
+function __init__()
+    isdefined(Base, :active_repl) || return
+    Base.root_module_exists(REPL_PKGID) || Base.require(REPL_PKGID)
+    return
+end
+
 end

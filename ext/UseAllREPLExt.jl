@@ -59,18 +59,32 @@ function __init__()
         try install_provider() catch end
     elseif isinteractive()
         # Loaded from startup.jl — REPL isn't initialized yet; wait for it.
-        @async try
-            while !isdefined(Base, :active_repl)
-                sleep(0.1)
-            end
-            repl = Base.active_repl
-            while !isdefined(repl, :interface)
-                sleep(0.1)
-            end
-            install_provider()
-        catch
-        end
+        schedule(Task(await_repl))
     end
 end
+
+"""
+    await_repl()
+
+Wait until `Base.active_repl` and its `interface` exist, then install the `@useall` completion provider.
+
+A named function instead of an `@async` closure, so that `precompile` covers it and the REPL start compiles nothing.
+"""
+function await_repl()
+    try
+        while !isdefined(Base, :active_repl)
+            sleep(0.1)
+        end
+        repl = Base.active_repl
+        while !isdefined(repl, :interface)
+            sleep(0.1)
+        end
+        install_provider()
+    catch
+    end
+    return
+end
+
+precompile(await_repl, ())
 
 end

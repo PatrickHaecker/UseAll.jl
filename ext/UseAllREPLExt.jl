@@ -55,36 +55,53 @@ end
 
 function __init__()
     if isdefined(Base, :active_repl)
-        # Loaded interactively (e.g. `using UseAll` at the REPL).
-        try install_provider() catch end
+        # Loaded interactively (e.g. `using UseAll` at the REPL or in an `atreplinit` hook).
+        schedule_install(Base.active_repl)
     elseif isinteractive()
-        # Loaded from startup.jl — REPL isn't initialized yet; wait for it.
-        schedule(Task(await_repl))
+        # Loaded from startup.jl — the REPL does not exist yet.
+        atreplinit(schedule_install)
     end
 end
 
 """
-    await_repl()
+    schedule_install(repl)
 
-Wait until `Base.active_repl` and its `interface` exist, then install the `@useall` completion provider.
+Install the `@useall` completion provider into `repl`, or schedule the installation if `repl` has no `interface` yet.
 
-A named function instead of an `@async` closure, so that `precompile` covers it and the REPL start compiles nothing.
+Do nothing unless `repl` is a `REPL.LineEditREPL`, because only that REPL type has completion providers. The REPL
+creates its `interface` in the frontend task, after the `atreplinit` hooks have run.
 """
-function await_repl()
-    try
-        while !isdefined(Base, :active_repl)
-            sleep(0.1)
-        end
-        repl = Base.active_repl
-        while !isdefined(repl, :interface)
-            sleep(0.1)
-        end
-        install_provider()
-    catch
+function schedule_install(@nospecialize(repl))
+    repl isa REPL.LineEditREPL || return
+    if isdefined(repl, :interface)
+        try install_provider() catch end
+    else
+        schedule(Task(await_interface))
     end
     return
 end
 
-precompile(await_repl, ())
+"""
+    await_interface()
+
+Yield until `Base.active_repl` has an `interface`, then install the `@useall` completion provider.
+
+Give up after one second. The frontend task creates the `interface` without yielding, so one `yield` usually
+suffices. The limit keeps the loop from spinning forever if the frontend fails before it creates the `interface`.
+"""
+function await_interface()
+    repl = Base.active_repl::REPL.LineEditREPL
+    deadline = time_ns() + 1_000_000_000
+    while !isdefined(repl, :interface)
+        time_ns() < deadline || return
+        yield()
+    end
+    try install_provider() catch end
+    return
+end
+
+# Named functions instead of closures, so that the REPL start compiles nothing.
+precompile(schedule_install, (Any,))
+precompile(await_interface, ())
 
 end

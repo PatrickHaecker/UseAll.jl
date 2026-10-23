@@ -16,9 +16,14 @@ end
 
 REPL.setmodifiers!(cp::UseAllCompletionProvider, m::LineEdit.Modifiers) = REPL.setmodifiers!(cp.wrapped, m)
 
+# Julia 1.11 added the `hint` keyword. Julia 1.12 replaced the returned strings and partial string by
+# `NamedCompletion`s and a region.
+const HAS_HINT = hasmethod(LineEdit.complete_line, Tuple{REPL.REPLCompletionProvider, LineEdit.PromptState, Module}, (:hint,))
+const HAS_NAMED_COMPLETION = isdefined(LineEdit, :NamedCompletion)
+
 function install_provider()
-    # Only install if the REPL API we depend on for fallback actually exists (incl. `hint` kwarg).
-    hasmethod(LineEdit.complete_line, Tuple{REPL.REPLCompletionProvider, LineEdit.PromptState, Module}, (:hint,)) || return
+    # Only install if the REPL API we depend on for fallback actually exists.
+    hasmethod(LineEdit.complete_line, Tuple{REPL.REPLCompletionProvider, LineEdit.PromptState, Module}) || return
     repl = Base.active_repl::REPL.LineEditREPL
     for mode in repl.interface.modes
         if mode isa LineEdit.Prompt && mode.complete isa REPL.REPLCompletionProvider
@@ -44,12 +49,26 @@ function LineEdit.complete_line(cp::UseAllCompletionProvider, s::LineEdit.Prompt
             offset = pos - ncodeunits(arg) - ncodeunits("using ")
         end
 
-        ret, query_range, should_complete = REPLCompletions.completions(query, query_pos, mod, cp.wrapped.modifiers.shift, hint)
-        range = REPL.to_region(full, (first(query_range) + offset):(last(query_range) + offset))
+        shift = cp.wrapped.modifiers.shift
+        ret, query_range, should_complete = @static if HAS_HINT
+            REPLCompletions.completions(query, query_pos, mod, shift, hint)
+        else
+            REPLCompletions.completions(query, query_pos, mod, shift)
+        end
         cp.wrapped.modifiers = LineEdit.Modifiers()
-        return unique!(LineEdit.NamedCompletion[REPLCompletions.named_completion(x) for x in ret]), range, should_complete
+        @static if HAS_NAMED_COMPLETION
+            range = REPL.to_region(full, (first(query_range) + offset):(last(query_range) + offset))
+            return unique!(LineEdit.NamedCompletion[REPLCompletions.named_completion(x) for x in ret]), range, should_complete
+        else
+            # The partial string is the text before the cursor that the completion replaces.
+            return unique!(map(REPLCompletions.completion_text, ret)), query[query_range], should_complete
+        end
     catch
-        return LineEdit.complete_line(cp.wrapped, s, mod; hint)
+        @static if HAS_HINT
+            return LineEdit.complete_line(cp.wrapped, s, mod; hint)
+        else
+            return LineEdit.complete_line(cp.wrapped, s, mod)
+        end
     end
 end
 

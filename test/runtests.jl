@@ -196,28 +196,28 @@ using Aqua, Revise, UseAll, Test, TOML
         pop!(LOAD_PATH)
     end
 
-    # Constructing a PromptState requires REPL internals, so these tests are version-gated.
-    if VERSION >= v"1.12" && !isnothing(Base.identify_package("REPL"))
+    if !isnothing(Base.identify_package("REPL"))
         @testset "REPL tab completion" begin
             using REPL, REPL.LineEdit
             ext = Base.get_extension(UseAll, :UseAllREPLExt)
             function _test_completions(input)
                 cp = ext.UseAllCompletionProvider(REPL.REPLCompletionProvider())
-                prompt = LineEdit.Prompt("julia> ")
-                buf = IOBuffer(input)
-                seek(buf, length(input))
-                terminal = Base.Terminals.TerminalBuffer(IOBuffer())
-                s = LineEdit.PromptState(terminal, prompt, buf, :off, nothing, IOBuffer[], 0,
-                                         LineEdit.InputAreaState(0, 0), -1,
-                                         Base.Threads.SpinLock(), -Inf, -Inf, nothing)
+                terminal = REPL.Terminals.TerminalBuffer(IOBuffer())
+                # `init_state` is REPL-internal, but unlike the `PromptState` fields it is stable since Julia 1.10.
+                s = LineEdit.init_state(terminal, LineEdit.Prompt("julia> "))
+                write(s.input_buffer, input)
                 comps, _, _ = LineEdit.complete_line(cp, s, Main)
-                return [c.completion for c in comps]
+                # Julia 1.12 replaced the returned strings by `NamedCompletion`s.
+                return [c isa AbstractString ? c : c.completion for c in comps]
             end
             @test "TOML" in _test_completions("@useall TO")
             @test "Iterators" in _test_completions("@useall Base.Ite")
             @test "TOML" in _test_completions("@useall Test TO")
             @test "TOML" in _test_completions("@usepublic TO")
             @test "Iterators" in _test_completions("@usepublic Base.Ite")
+            # Not loaded into `Main`, so only the `using` completion finds it, not the fallback.
+            @test "TestItemRunner" in _test_completions("@useall TestItemR")
+            @test "TestItemRunner" in _test_completions("@usepublic Test TestItemR")
             @test "println" in _test_completions("printl")  # normal completion unaffected
         end
     end

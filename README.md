@@ -27,10 +27,12 @@ end
 @useall MyModule   # The Julia parser does not accept `@useall .MyModule` here.
 ```
 
-As an alternative (mirroring the syntax supported by Reexport.jl), you can also use the `using` form to explicitly refer to submodules of the current module:
+Nested submodules such as `@useall MyModule.Inner` and modules bound in the current module such as `@useall Iterators` work as well. A name is looked up in this order: a submodule of the current module, then a package (including `Base`, `Core` and `Main`), then any other module bound in the current module.
+
+As an alternative (mirroring the syntax supported by Reexport.jl), you can also use the `using` form to explicitly refer to submodules of the current module or, with more dots, of its parents:
 
 ```julia
-@useall using .MyModule
+@useall using .MyModule, ..SiblingModule
 ```
 
 This is useful while working in the REPL: By pulling names from a package or submodule into `Main`, you can execute copy-pasted code from a module. That means all your previous definitions in your REPL session or from your `startup.jl` remain available. You can also add the names from more than one module and can execute their copy-pasted code without doing anything else in-between.
@@ -59,4 +61,4 @@ Do not use `UseAll.jl` in a regular package. If code side-steps module access bo
 - `Revise` integration: when `Revise.jl` is loaded, newly added symbols to `MyModule` are brought in automatically into the namespace of your currently active module (typically `Main`) after you did a `@useall MyModule`.
 - `REPL` integration: tab completion for `@useall` arguments, reusing Julia's REPL completion behavior for `using`.
 
-Both extensions rely on private Julia or package internals. They are therefore provided on a best-effort basis and are designed to fail silently on Julia versions or environments where the required internals are unavailable or have changed.
+Both extensions rely on private Julia or package internals. They are therefore provided on a best-effort basis. If the required internals are unavailable or have changed, the extensions report the error, and `@useall` and `@usepublic` themselves keep working. Revise can't track modules without a package or source file, such as modules defined at the REPL, so their new names aren't imported automatically.

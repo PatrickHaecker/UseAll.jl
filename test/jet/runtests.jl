@@ -4,6 +4,7 @@ using JET, Test, TOML, UseAll
     # The optional extensions intentionally rely on private APIs, so keep JET
     # focused on the stable core helpers.
     JET.@test_call UseAll.splitmodpath(:(Base.Iterators))
+    JET.@test_call UseAll.splitmodpath(Expr(:., :., :., :A, :B))
     JET.@test_call UseAll.allnames(TOML)
     JET.@test_call collect(UseAll.usefulnames(TOML, Main))
 end
